@@ -1,3 +1,7 @@
+use bevy_reflect::Reflect;
+use bevy_render::renderer::RenderResources;
+use bevy_math::Vec2;
+
 #[derive(Clone, Debug)]
 pub struct ANode {
     pub anchors_x: (f32, f32),
@@ -42,6 +46,11 @@ impl Default for Constraint {
             y: Default::default(),
         }
     }
+}
+
+#[derive(Default, RenderResources, Reflect, Clone, Debug)]
+pub struct AuiRender {
+    pub size: Vec2,
 }
 
 #[derive(Clone, Debug)]

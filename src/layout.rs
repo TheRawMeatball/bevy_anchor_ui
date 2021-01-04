@@ -2,7 +2,7 @@ use bevy_ecs::{Entity, Query};
 use bevy_math::Vec2;
 use bevy_transform::components::{Children, Transform};
 
-use crate::{render::AuiRender, ANode, AxisConstraint, Constraint};
+use crate::{AuiRender, ANode, AxisConstraint, Constraint};
 
 pub(crate) fn solve(
     solve_target: Entity,

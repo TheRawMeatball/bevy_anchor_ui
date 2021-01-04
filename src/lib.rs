@@ -18,7 +18,6 @@ mod layout;
 mod render;
 pub mod types;
 
-pub use render::AuiRender;
 use render::{UiRenderGraphBuilder, UI_PIPELINE_HANDLE};
 pub use types::*;
 
@@ -72,7 +71,7 @@ impl Default for AUiCameraBundle {
         let far = 1000.0;
         AUiCameraBundle {
             camera: Camera {
-                name: Some(render::camera::AUI_CAM.to_string()),
+                name: Some(render::camera::CAMERA_UI.to_string()),
                 ..Default::default()
             },
             orthographic_projection: OrthographicProjection {
@@ -105,10 +104,11 @@ pub fn layout_system(
 
 pub struct AUIPlugin;
 
+const STAGE: &str = "aui";
 impl Plugin for AUIPlugin {
     fn build(&self, app: &mut bevy_app::AppBuilder) {
-        app.add_stage_before(stage::POST_UPDATE, "aui", SystemStage::parallel())
-            .add_system_to_stage("aui", layout_system.system());
+        app.add_stage_before(stage::POST_UPDATE, STAGE, SystemStage::parallel())
+            .add_system_to_stage(STAGE, layout_system.system());
 
         let resources = app.resources();
         resources
