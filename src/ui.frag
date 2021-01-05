@@ -1,5 +1,7 @@
 #version 450
 
+// Taken from bevy_ui
+
 layout(set = 2, binding = 0) uniform ColorMaterial_color {
     vec4 Color;
 };

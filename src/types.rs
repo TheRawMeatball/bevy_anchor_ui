@@ -86,6 +86,8 @@ impl Default for AxisConstraint {
     }
 }
 
+// Anchors taken directly from bevy_ui (except for the functions x and y)
+
 #[derive(Debug, Clone)]
 pub struct Anchors {
     pub left: f32,

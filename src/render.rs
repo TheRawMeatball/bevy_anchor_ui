@@ -1,3 +1,5 @@
+// Taken directly from bevy_ui
+
 use crate::AuiRender;
 use bevy_asset::{Assets, HandleUntyped};
 use bevy_ecs::Resources;
