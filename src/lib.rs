@@ -94,11 +94,11 @@ pub fn layout_system(
 ) {
     for (root, window) in roots.iter().zip(windows.iter()) {
         let window_size = Vec2::new(window.width(), window.height());
-        layout::solve(root, window_size, &nodes, &mut transforms);
+        layout::solve(root, window_size, 50., &nodes, &mut transforms);
     }
     println!("-------");
-    for (_, s) in transforms.iter_mut() {
-        println!("{:?}", s.size);
+    for (t, s) in transforms.iter_mut() {
+        println!("{:?} {:?}", t.translation.z, s.size);
     }
 }
 

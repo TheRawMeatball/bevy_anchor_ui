@@ -19,6 +19,6 @@ layout(set = 1, binding = 1) uniform AuiRender_size {
 
 void main() {
     v_Uv = Vertex_Uv;
-    vec3 position = Vertex_Position * vec3(NodeSize / 5.0, 0.0);
+    vec3 position = Vertex_Position * vec3(NodeSize, 0.0);
     gl_Position = ViewProj * Object * vec4(position, 1.0);
 }

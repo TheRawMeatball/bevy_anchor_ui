@@ -19,7 +19,7 @@ use bevy_render::{
 };
 
 pub const UI_PIPELINE_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(PipelineDescriptor::TYPE_UUID, 3234320022263993878);
+    HandleUntyped::weak_from_u64(PipelineDescriptor::TYPE_UUID, 3234320022263998);
 
 pub fn build_ui_pipeline(shaders: &mut Assets<Shader>) -> PipelineDescriptor {
     PipelineDescriptor {

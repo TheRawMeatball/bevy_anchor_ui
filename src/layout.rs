@@ -1,12 +1,17 @@
+use std::collections::BTreeMap;
+
 use bevy_ecs::{Entity, Query};
 use bevy_math::Vec2;
 use bevy_transform::components::{Children, Transform};
 
-use crate::{AuiRender, ANode, AxisConstraint, Constraint};
+use crate::{ANode, AuiRender, AxisConstraint, Constraint, Direction};
+
+pub const UI_Z_STEP: f32 = -0.001;
 
 pub(crate) fn solve(
     solve_target: Entity,
     space: Vec2,
+    active_z: f32,
     nodes: &Query<(&ANode, Option<&Children>)>,
     transforms: &mut Query<(&mut Transform, &mut AuiRender)>,
 ) {
@@ -14,82 +19,142 @@ pub(crate) fn solve(
     let target_size = &mut render_data.size;
     let (solve_target, children) = nodes.get(solve_target).unwrap();
 
-    match &solve_target.constraint {
+    let mut offset = match &solve_target.constraint {
         Constraint::Independent { x, y } => {
-            let x = x.solve(solve_target.anchors_x, space.x);
-            let y = y.solve(solve_target.anchors_y, space.y);
+            let x = x.solve(solve_target.anchors.x(), space.x);
+            let y = y.solve(solve_target.anchors.y(), space.y);
 
-            target_transform.translation = Vec2::new(x.offset, y.offset).extend(0.);
             *target_size = Vec2::new(x.size, y.size);
+            Vec2::new(x.offset, y.offset)
         }
         Constraint::SetXWithY { y, aspect } => {
-            let y = y.solve(solve_target.anchors_y, space.y);
+            let y = y.solve(solve_target.anchors.y(), space.y);
             let x =
-                AxisConstraint::Centered(y.size * aspect).solve(solve_target.anchors_x, space.x);
+                AxisConstraint::Centered(y.size * aspect).solve(solve_target.anchors.x(), space.x);
 
-            target_transform.translation = Vec2::new(x.offset, y.offset).extend(0.);
             *target_size = Vec2::new(x.size, y.size);
+            Vec2::new(x.offset, y.offset)
         }
         Constraint::SetYWithX { x, aspect } => {
-            let x = x.solve(solve_target.anchors_x, space.x);
+            let x = x.solve(solve_target.anchors.x(), space.x);
             let y =
-                AxisConstraint::Centered(x.size / aspect).solve(solve_target.anchors_y, space.y);
+                AxisConstraint::Centered(x.size / aspect).solve(solve_target.anchors.y(), space.y);
 
-            target_transform.translation = Vec2::new(x.offset, y.offset).extend(0.);
             *target_size = Vec2::new(x.size, y.size);
+            Vec2::new(x.offset, y.offset)
         }
         Constraint::MaxAspect(aspect) => {
-            let x_from_y = space.y * aspect;
-            let y_from_x = space.x / aspect;
+            let x_from_y =
+                (solve_target.anchors.y().1 - solve_target.anchors.y().0) * space.y * aspect;
+            let y_from_x =
+                (solve_target.anchors.x().1 - solve_target.anchors.x().0) * space.x / aspect;
 
-            *target_size = if x_from_y <= space.x {
+            *target_size = if x_from_y >= space.x {
                 Vec2::new(space.x, y_from_x)
             } else {
                 Vec2::new(x_from_y, space.y)
             };
+            Vec2::zero()
         }
-        Constraint::ParentSpecified(spec) => {
-            let x = spec.padding_x.solve(solve_target.anchors_x, space.x);
-            let y = spec.padding_y.solve(solve_target.anchors_y, space.y);
-            *target_size = Vec2::new(x.size, y.size);
-        }
-    }
+    };
+
+    if solve_target.child_constraint.is_some() {
+        offset += target_transform.translation.truncate();
+    };
+
+    target_transform.translation = offset.extend(active_z);
+    let active_z = active_z + UI_Z_STEP;
 
     if let Some(children) = children {
-        if let Some(_spread_constraint) = &solve_target.children_spread {
-            todo!();
-            // let child_nodes = children
-            //     .iter()
-            //     .map(|c| (nodes.get_component::<ANode>(*c).unwrap(), c))
-            //     .collect::<Vec<_>>();
-            // let offset = spread_constraint.outer_margin;
-            // let available_size = match spread_constraint.direction {
-            //     Direction::Left | Direction::Right => size.x,
-            //     Direction::Up | Direction::Down => size.y,
-            // } - offset * 2.;
-            // if spread_constraint.stretch {
-            //     let total_weight: f32 = child_nodes
-            //         .iter()
-            //         .map(|c| c.0.constraint.unwrap_parent_specified().weight)
-            //         .sum();
+        let ts = target_size.clone();
+        if let Some(spread_constraint) = &solve_target.children_spread {
+            let child_nodes = children.iter().map(|c| {
+                (
+                    nodes
+                        .get_component::<ANode>(*c)
+                        .unwrap()
+                        .child_constraint
+                        .as_ref()
+                        .unwrap(),
+                    c,
+                )
+            });
 
-            //     for (node, entity) in child_nodes.into_iter() {
-            //         let transform = transforms.get_mut(*entity).unwrap();
+            let mut free_length = match spread_constraint.direction {
+                Direction::Left | Direction::Right => ts.x,
+                Direction::Up | Direction::Down => ts.y,
+            } - (children.iter().count() - 1) as f32 * spread_constraint.margin;
 
-            //         let constraint = node.constraint.unwrap_parent_specified();
-            //         let relative_weight = constraint.weight / total_weight;
-            //     }
-            // } else {
-            //     for (i, (node, entity)) in child_nodes.into_iter().enumerate() {
-            //         let mut transform = transforms.get_mut(*entity).unwrap();
-            //         let constraint = node.constraint.unwrap_parent_specified();
+            let mut undef = vec![];
+            let mut undef_weight_sum = 0.;
 
-            //     }
-            // }
+            let mut locked = BTreeMap::<usize, (&Entity, f32)>::new();
+
+            for (i, c) in child_nodes.enumerate() {
+                undef_weight_sum += c.0.weight;
+                undef.push((i, c));
+            }
+
+            loop {
+                let mut dirty = false;
+                let length_per_weight = free_length / undef_weight_sum;
+
+                let mut k = 0;
+                while k != undef.len() {
+                    let (i, (n, e)) = undef[k];
+                    let len = length_per_weight * n.weight;
+                    let clamped = len.clamp(n.min_size, n.max_size);
+                    if len != clamped {
+                        dirty = true;
+                        undef_weight_sum -= n.weight;
+                        free_length -= clamped;
+                        locked.insert(i, (e, clamped));
+                        undef.swap_remove(k);
+                    } else {
+                        k += 1;
+                    }
+                }
+
+                if !dirty {
+                    for (i, (n, e)) in undef.iter() {
+                        let len = length_per_weight * n.weight;
+                        locked.insert(*i, (e, len));
+                    }
+                    break;
+                }
+            }
+
+            let (calc_pos, calc_size): (fn(f32, f32, Vec2) -> Vec2, fn(f32, Vec2) -> Vec2) =
+                match spread_constraint.direction {
+                    Direction::Up => (
+                        |size, offset, ts| Vec2::new(0., offset + size / 2. - ts.y / 2.),
+                        |size, ts| Vec2::new(ts.x, size),
+                    ),
+                    Direction::Down => (
+                        |size, offset, ts| Vec2::new(0., ts.y / 2. - offset - size / 2.),
+                        |size, ts| Vec2::new(ts.x, size),
+                    ),
+                    Direction::Left => (
+                        |size, offset, ts| Vec2::new(ts.x / 2. - offset - size / 2., 0.),
+                        |size, ts| Vec2::new(size, ts.y),
+                    ),
+                    Direction::Right => (
+                        |size, offset, ts| Vec2::new(offset + size / 2. - ts.x / 2., 0.),
+                        |size, ts| Vec2::new(size, ts.y),
+                    ),
+                };
+
+            let mut offset = 0.;
+            for &(&entity, size) in locked.values() {
+                let (mut transform, _) = transforms.get_mut(entity).unwrap();
+                transform.translation = calc_pos(size, offset, ts).extend(0.);
+                offset += size + spread_constraint.margin;
+                let size = calc_size(size, ts);
+                solve(entity, size, active_z, nodes, transforms);
+            }
         } else {
-            let ts = target_size.clone();
             for child in children.iter() {
-                solve(*child, ts, nodes, transforms);
+                solve(*child, ts, active_z, nodes, transforms);
             }
         }
     }

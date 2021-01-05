@@ -20,5 +20,5 @@ void main() {
             sampler2D(ColorMaterial_texture, ColorMaterial_texture_sampler),
             v_Uv);
     # endif
-    o_Target = vec4(1.0, 0.0, 0.0, 0.3);
+    o_Target = color;//vec4(1.0, 0.0, 0.0, 0.3);
 }
