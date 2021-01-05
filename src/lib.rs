@@ -92,7 +92,7 @@ impl Default for AUiCameraBundle {
 
 pub fn layout_system(
     roots: Query<Entity, (With<ANode>, Without<Parent>)>,
-    nodes: Query<(&ANode, Flags<ANode>, Option<&Children>, Flags<Children>)>,
+    nodes: Query<(&ANode, Flags<ANode>, Option<&Children>, Option<Flags<Children>>)>,
     mut transforms: Query<(&mut Transform, &mut AuiRender, &mut ANodeLayoutCache)>,
     windows: Res<Windows>,
     mut local: Local<Vec<Vec2>>,

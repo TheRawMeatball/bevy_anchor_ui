@@ -13,7 +13,7 @@ pub(crate) fn solve(
     space: Vec2,
     active_z: f32,
     respect_flags: bool,
-    nodes: &Query<(&ANode, Flags<ANode>, Option<&Children>, Flags<Children>)>,
+    nodes: &Query<(&ANode, Flags<ANode>, Option<&Children>, Option<Flags<Children>>)>,
     mutables: &mut Query<(&mut Transform, &mut AuiRender, &mut ANodeLayoutCache)>,
 ) {
     let (mut target_transform, mut render_data, cache) = mutables.get_mut(solve_entity).unwrap();
@@ -26,7 +26,7 @@ pub(crate) fn solve(
                 |transforms| solve(solve_entity, space, active_z, false, nodes, transforms);
             let ts = target_size.clone();
             if solve_target.children_spread.is_some() {
-                if children_flags.changed() {
+                if children_flags.unwrap().changed() {
                     solve_self(mutables);
                     return;
                 }
