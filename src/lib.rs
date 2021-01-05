@@ -55,6 +55,8 @@ impl Default for AUINode {
     }
 }
 
+// Camera taken from bevy_ui
+
 #[derive(Bundle, Debug)]
 pub struct AUiCameraBundle {
     pub camera: Camera,
