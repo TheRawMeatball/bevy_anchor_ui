@@ -7,12 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy_math = { path = "../bevy/crates/bevy_math" }
-bevy_app = { path = "../bevy/crates/bevy_app" }
-bevy_ecs = { path = "../bevy/crates/bevy_ecs" }
-bevy_transform = { path = "../bevy/crates/bevy_transform" }
-bevy_window = { path = "../bevy/crates/bevy_window" }
-bevy_render = { path = "../bevy/crates/bevy_render" }
-bevy_asset = { path = "../bevy/crates/bevy_asset" }
-bevy_reflect = { path = "../bevy/crates/bevy_reflect" }
-bevy_sprite = { path = "../bevy/crates/bevy_sprite" }
+bevy_math = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_app = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_transform = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_window = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_render = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_asset = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_reflect = { git = "https://github.com/bevyengine/bevy.git" }
+bevy_sprite = { git = "https://github.com/bevyengine/bevy.git" }
