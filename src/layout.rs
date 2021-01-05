@@ -1,23 +1,54 @@
 use std::collections::BTreeMap;
 
-use bevy_ecs::{Entity, Query};
+use bevy_ecs::{Entity, Flags, Query};
 use bevy_math::Vec2;
 use bevy_transform::components::{Children, Transform};
 
-use crate::{ANode, AuiRender, AxisConstraint, Constraint, Direction};
+use crate::{ANode, ANodeLayoutCache, AuiRender, AxisConstraint, Constraint, Direction};
 
 pub const UI_Z_STEP: f32 = -0.001;
 
 pub(crate) fn solve(
-    solve_target: Entity,
+    solve_entity: Entity,
     space: Vec2,
     active_z: f32,
-    nodes: &Query<(&ANode, Option<&Children>)>,
-    transforms: &mut Query<(&mut Transform, &mut AuiRender)>,
+    respect_flags: bool,
+    nodes: &Query<(&ANode, Flags<ANode>, Option<&Children>, Flags<Children>)>,
+    mutables: &mut Query<(&mut Transform, &mut AuiRender, &mut ANodeLayoutCache)>,
 ) {
-    let (mut target_transform, mut render_data) = transforms.get_mut(solve_target).unwrap();
+    let (mut target_transform, mut render_data, cache) = mutables.get_mut(solve_entity).unwrap();
     let target_size = &mut render_data.size;
-    let (solve_target, children) = nodes.get(solve_target).unwrap();
+    let (solve_target, node_flags, children, children_flags) = nodes.get(solve_entity).unwrap();
+
+    if respect_flags && !node_flags.changed() {
+        if let Some(children) = children {
+            let solve_self =
+                |transforms| solve(solve_entity, space, active_z, false, nodes, transforms);
+            let ts = target_size.clone();
+            if solve_target.children_spread.is_some() {
+                if children_flags.changed() {
+                    solve_self(mutables);
+                    return;
+                }
+                for child in children.iter() {
+                    let child = nodes.get(*child).unwrap();
+                    if child.1.changed() {
+                        solve_self(mutables);
+                        return;
+                    }
+                }
+                let cache = cache.sizes.as_ref().unwrap().clone();
+                for (child, size) in children.iter().zip(cache.iter()) {
+                    solve(*child, *size, active_z + UI_Z_STEP, true, nodes, mutables)
+                }
+            } else {
+                for child in children.iter() {
+                    solve(*child, ts, active_z + UI_Z_STEP, true, nodes, mutables)
+                }
+            }
+        }
+        return;
+    }
 
     let mut offset = match &solve_target.constraint {
         Constraint::Independent { x, y } => {
@@ -83,7 +114,8 @@ pub(crate) fn solve(
             let mut free_length = match spread_constraint.direction {
                 Direction::Left | Direction::Right => ts.x,
                 Direction::Up | Direction::Down => ts.y,
-            } - (children.iter().count() - 1) as f32 * spread_constraint.margin;
+            } - (children.iter().count() - 1) as f32
+                * spread_constraint.margin;
 
             let mut undef = vec![];
             let mut undef_weight_sum = 0.;
@@ -145,16 +177,20 @@ pub(crate) fn solve(
                 };
 
             let mut offset = 0.;
+            let mut cache = vec![];
             for &(&entity, size) in locked.values() {
-                let (mut transform, _) = transforms.get_mut(entity).unwrap();
+                let (mut transform, _, _) = mutables.get_mut(entity).unwrap();
                 transform.translation = calc_pos(size, offset, ts).extend(0.);
                 offset += size + spread_constraint.margin;
                 let size = calc_size(size, ts);
-                solve(entity, size, active_z, nodes, transforms);
+                cache.push(size);
+                solve(entity, size, active_z, respect_flags, nodes, mutables);
             }
+            let (_, _, mut target_cache) = mutables.get_mut(solve_entity).unwrap();
+            target_cache.sizes = Some(cache);
         } else {
             for child in children.iter() {
-                solve(*child, ts, active_z, nodes, transforms);
+                solve(*child, ts, active_z, false, nodes, mutables);
             }
         }
     }

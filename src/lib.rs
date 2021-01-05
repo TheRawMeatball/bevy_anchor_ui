@@ -1,6 +1,6 @@
 use bevy_app::{stage, Plugin};
 use bevy_asset::Handle;
-use bevy_ecs::{Bundle, SystemStage};
+use bevy_ecs::{Bundle, Flags, Local, SystemStage};
 use bevy_ecs::{Entity, IntoSystem, Query, Res, With, Without};
 use bevy_math::{Vec2, Vec3};
 use bevy_render::{
@@ -31,6 +31,7 @@ pub struct AUINode {
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub node: ANode,
+    pub layout_cache: ANodeLayoutCache,
     pub render_data: AuiRender,
 }
 
@@ -51,6 +52,7 @@ impl Default for AUINode {
             transform: Default::default(),
             global_transform: Default::default(),
             render_data: Default::default(),
+            layout_cache: Default::default(),
         }
     }
 }
@@ -90,18 +92,30 @@ impl Default for AUiCameraBundle {
 
 pub fn layout_system(
     roots: Query<Entity, (With<ANode>, Without<Parent>)>,
-    nodes: Query<(&ANode, Option<&Children>)>,
-    mut transforms: Query<(&mut Transform, &mut AuiRender)>,
+    nodes: Query<(&ANode, Flags<ANode>, Option<&Children>, Flags<Children>)>,
+    mut transforms: Query<(&mut Transform, &mut AuiRender, &mut ANodeLayoutCache)>,
     windows: Res<Windows>,
+    mut local: Local<Vec<Vec2>>,
 ) {
-    for (root, window) in roots.iter().zip(windows.iter()) {
+    for (i, (root, window)) in roots.iter().zip(windows.iter()).enumerate() {
         let window_size = Vec2::new(window.width(), window.height());
-        layout::solve(root, window_size, 50., &nodes, &mut transforms);
+        let root_change = if let Some(old_size) = local.get_mut(i) {
+            if *old_size == window_size {
+                false
+            } else {
+                *old_size = window_size;
+                true
+            }
+        } else {
+            local.push(window_size);
+            true
+        };
+        layout::solve(root, window_size, 50., !root_change, &nodes, &mut transforms);
     }
-    println!("-------");
-    for (t, s) in transforms.iter_mut() {
-        println!("{:?} {:?}", t.translation.z, s.size);
-    }
+    // println!("-------");
+    // for (t, s) in transforms.iter_mut() {
+    //     println!("{:?} {:?}", t.translation.z, s.size);
+    // }
 }
 
 pub struct AUIPlugin;

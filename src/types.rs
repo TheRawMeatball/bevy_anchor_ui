@@ -10,6 +10,11 @@ pub struct ANode {
     pub child_constraint: Option<ChildConstraint>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct ANodeLayoutCache {
+    pub(crate) sizes: Option<Vec<Vec2>>,
+}
+
 #[derive(Clone, Debug)]
 pub enum Constraint {
     Independent {
@@ -58,10 +63,11 @@ impl Default for ChildConstraint {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SpreadConstraint {
     pub margin: f32,
     pub direction: Direction,
+    pub __cache: Vec<Vec2>,
 }
 
 #[derive(Clone, Debug)]
@@ -70,6 +76,12 @@ pub enum Direction {
     Down,
     Left,
     Right,
+}
+
+impl Default for Direction {
+    fn default() -> Self {
+        Direction::Right
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
